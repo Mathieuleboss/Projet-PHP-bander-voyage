@@ -1,7 +1,10 @@
--- Créer la base de données 
+-- Créer la base de données
+
 CREATE DATABASE TravelDB; 
 USE TravelDB;
+
 -- Table des utilisateurs 
+
 CREATE TABLE Users ( 
 user_id INT AUTO_INCREMENT PRIMARY KEY, 
 first_name VARCHAR(100) NOT NULL,
@@ -12,7 +15,9 @@ phone_number VARCHAR(15) NULL,
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 balance DOUBLE DEFAULT 0.00,
 INDEX (email) );
+
 -- Table des destinations 
+
 CREATE TABLE Destinations ( 
 destination_id INT AUTO_INCREMENT PRIMARY KEY,
 name VARCHAR(100) NOT NULL,
@@ -20,7 +25,9 @@ country VARCHAR(100) NOT NULL,
 description TEXT,
 image_url VARCHAR(255) NULL,
 INDEX (country) );
+
 -- Table des hôtels 
+
 CREATE TABLE Hotels(
 hotel_id INT AUTO_INCREMENT PRIMARY KEY,
 name VARCHAR(100) NOT NULL,
@@ -32,7 +39,9 @@ price_per_night DECIMAL(10, 2) NOT NULL,
 image_url VARCHAR(255) NULL,
 FOREIGN KEY (destination_id) REFERENCES Destinations(destination_id),
 INDEX (price_per_night) );
+
 -- Table des vols 
+
 CREATE TABLE Flights (
 flight_id INT AUTO_INCREMENT PRIMARY KEY,
 airline VARCHAR(100) NOT NULL,
@@ -46,7 +55,9 @@ duration INT NOT NULL,
 image_url VARCHAR(255) NULL,
 FOREIGN KEY (destination_id) REFERENCES Destinations(destination_id),
 INDEX (departure_time) ); 
+
 -- Table des réservations 
+
 CREATE TABLE Reservations (
 reservation_id INT AUTO_INCREMENT PRIMARY KEY,
 user_id INT, hotel_id INT,
@@ -58,7 +69,9 @@ FOREIGN KEY (user_id) REFERENCES Users(user_id),
 FOREIGN KEY (hotel_id) REFERENCES Hotels(hotel_id),
 FOREIGN KEY (flight_id) REFERENCES Flights(flight_id), 
 INDEX (reservation_date) );
+
 -- Table des avis d'hôtels
+
 CREATE TABLE HotelReviews (
 review_id INT AUTO_INCREMENT PRIMARY KEY,
 user_id INT, hotel_id INT,
@@ -68,7 +81,9 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY (user_id) REFERENCES Users(user_id),
 FOREIGN KEY (hotel_id) REFERENCES Hotels(hotel_id),
 INDEX (created_at) ); 
+
 -- Table des avis de vols 
+
 CREATE TABLE FlightReviews (
 review_id INT AUTO_INCREMENT PRIMARY KEY,
 user_id INT, flight_id INT,
@@ -78,7 +93,9 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 FOREIGN KEY (user_id) REFERENCES Users(user_id),
 FOREIGN KEY (flight_id) REFERENCES Flights(flight_id),
 INDEX (created_at) );
+
 -- Table des paiements
+
 CREATE TABLE Payments (
 payment_id INT AUTO_INCREMENT PRIMARY KEY,
 reservation_id INT,
@@ -91,7 +108,9 @@ reservation_hotel INT,
 reservation_flight INT,
 -- Référence au vol dans la réservation 
 FOREIGN KEY (reservation_id) REFERENCES Reservations(reservation_id) );
+
 -- Table des détails de paiement
+
 CREATE TABLE PaymentDetails (
 payment_detail_id INT AUTO_INCREMENT PRIMARY KEY,
 payment_id INT, card_number VARCHAR(16) NULL,
