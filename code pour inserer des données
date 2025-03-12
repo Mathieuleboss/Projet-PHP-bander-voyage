@@ -1,0 +1,64 @@
+from datetime import datetime, timedelta
+
+# Fonction pour générer les dates de départ et d'arrivée
+def generate_flight_times(departure_date, duration_hours):
+    departure_time = departure_date.strftime('%Y-%m-%d %H:%M:%S')
+    arrival_time = (departure_date + timedelta(hours=duration_hours)).strftime('%Y-%m-%d %H:%M:%S')
+    return departure_time, arrival_time
+
+# Paramètres des destinations avec durée de vol en heures
+destinations = {
+    "Paris": 8,  # Durée approximative vol Paris -> New York
+    "New York": 8,  # Durée approximative vol New York -> Paris
+    "Tokyo": 12,  # Durée approximative vol Paris -> Tokyo
+    "Yaoundé": 6  # Durée approximative vol Paris -> Yaoundé
+}
+
+# Période de vol : du 1er juin 2025 au 31 août 2025
+start_date = datetime(2025, 6, 1)
+end_date = datetime(2025, 8, 31)
+
+# Horaires de départ (6h, 10h, 12h, 18h, 22h)
+departure_times = [6, 10, 12, 18, 22]
+
+# Générer les requêtes SQL
+queries = []
+
+# Pour chaque jour entre le 1er juin et le 31 août
+current_date = start_date
+while current_date <= end_date:
+    for destination, duration in destinations.items():
+        for dep_hour in departure_times:
+            # Déterminer l'heure de départ
+            departure_date = current_date.replace(hour=dep_hour, minute=0, second=0)
+            # Calculer l'heure d'arrivée
+            departure_time, arrival_time = generate_flight_times(departure_date, duration)
+            
+            # Créer la requête SQL pour l'aller
+            query = f"""
+            INSERT INTO Flights (airline, origin, destination_id, departure_time, arrival_time, price, duration, image_url)
+            SELECT 'Air France', 'Paris', destination_id, '{departure_time}', '{arrival_time}', 500, {duration}, 'airline_image_url.jpg'
+            FROM Destinations
+            WHERE name = '{destination}';
+            """
+            queries.append(query)
+            
+            # Créer la requête SQL pour le retour (vol retour)
+            # Pour le vol retour, inverser les villes d'origine et de destination, avec une durée inversée
+            return_duration = destinations.get(destination, 8)  # Durée retour
+            return_departure_time, return_arrival_time = generate_flight_times(departure_date, return_duration)
+            
+            query_return = f"""
+            INSERT INTO Flights (airline, origin, destination_id, departure_time, arrival_time, price, duration, image_url)
+            SELECT 'Air France', '{destination}', destination_id, '{return_departure_time}', '{return_arrival_time}', 500, {return_duration}, 'airline_image_url.jpg'
+            FROM Destinations
+            WHERE name = 'Paris';
+            """
+            queries.append(query_return)
+    
+    # Passer au jour suivant
+    current_date += timedelta(days=1)
+
+# Afficher les requêtes générées
+for query in queries:
+    print(query)
