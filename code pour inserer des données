@@ -1,64 +1,109 @@
-from datetime import datetime, timedelta
+DELIMITER $$
 
-# Fonction pour générer les dates de départ et d'arrivée
-def generate_flight_times(departure_date, duration_hours):
-    departure_time = departure_date.strftime('%Y-%m-%d %H:%M:%S')
-    arrival_time = (departure_date + timedelta(hours=duration_hours)).strftime('%Y-%m-%d %H:%M:%S')
-    return departure_time, arrival_time
+CREATE PROCEDURE InsertFlights()
+BEGIN
+    -- Variables pour les dates et autres paramètres
+    DECLARE dateV DATE;
+    DECLARE departure_time TIME;
+    DECLARE duration INT;
+    DECLARE departure_datetime DATETIME;
+    DECLARE arrival_datetime DATETIME;
+    DECLARE destination VARCHAR(50);
+    DECLARE return_duration INT;
+    DECLARE done INT DEFAULT 0;
+    DECLARE return_departure_datetime DATETIME;
+    DECLARE return_arrival_datetime DATETIME;
 
-# Paramètres des destinations avec durée de vol en heures
-destinations = {
-    "Paris": 8,  # Durée approximative vol Paris -> New York
-    "New York": 8,  # Durée approximative vol New York -> Paris
-    "Tokyo": 12,  # Durée approximative vol Paris -> Tokyo
-    "Yaoundé": 6  # Durée approximative vol Paris -> Yaoundé
-}
+    -- Curseur pour les destinations
+    DECLARE destinations_cursor CURSOR FOR
+        SELECT 'Paris' UNION ALL SELECT 'New York' UNION ALL SELECT 'Tokyo' UNION ALL SELECT 'Yaoundé';
 
-# Période de vol : du 1er juin 2025 au 31 août 2025
-start_date = datetime(2025, 6, 1)
-end_date = datetime(2025, 8, 31)
+    -- Curseur pour les horaires de départ
+    DECLARE time_cursor CURSOR FOR
+        SELECT '06:00:00' UNION ALL SELECT '10:00:00' UNION ALL SELECT '12:00:00' UNION ALL SELECT '18:00:00' UNION ALL SELECT '22:00:00';
 
-# Horaires de départ (6h, 10h, 12h, 18h, 22h)
-departure_times = [6, 10, 12, 18, 22]
+    -- Handler pour fermer le curseur à la fin
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
 
-# Générer les requêtes SQL
-queries = []
+    -- Initialiser la date de départ
+    SET dateV = '2025-06-01';
 
-# Pour chaque jour entre le 1er juin et le 31 août
-current_date = start_date
-while current_date <= end_date:
-    for destination, duration in destinations.items():
-        for dep_hour in departure_times:
-            # Déterminer l'heure de départ
-            departure_date = current_date.replace(hour=dep_hour, minute=0, second=0)
-            # Calculer l'heure d'arrivée
-            departure_time, arrival_time = generate_flight_times(departure_date, duration)
-            
-            # Créer la requête SQL pour l'aller
-            query = f"""
-            INSERT INTO Flights (airline, origin, destination_id, departure_time, arrival_time, price, duration, image_url)
-            SELECT 'Air France', 'Paris', destination_id, '{departure_time}', '{arrival_time}', 500, {duration}, 'airline_image_url.jpg'
-            FROM Destinations
-            WHERE name = '{destination}';
-            """
-            queries.append(query)
-            
-            # Créer la requête SQL pour le retour (vol retour)
-            # Pour le vol retour, inverser les villes d'origine et de destination, avec une durée inversée
-            return_duration = destinations.get(destination, 8)  # Durée retour
-            return_departure_time, return_arrival_time = generate_flight_times(departure_date, return_duration)
-            
-            query_return = f"""
-            INSERT INTO Flights (airline, origin, destination_id, departure_time, arrival_time, price, duration, image_url)
-            SELECT 'Air France', '{destination}', destination_id, '{return_departure_time}', '{return_arrival_time}', 500, {return_duration}, 'airline_image_url.jpg'
-            FROM Destinations
-            WHERE name = 'Paris';
-            """
-            queries.append(query_return)
-    
-    # Passer au jour suivant
-    current_date += timedelta(days=1)
+    -- Boucle pour chaque jour entre le 1er juin et le 31 août
+    WHILE dateV <= '2025-08-31' DO
+        -- Réinitialiser done avant d'ouvrir le curseur pour les destinations
+        SET done = 0;
+        
+        -- Ouvrir le curseur pour les destinations
+        OPEN destinations_cursor;
+        
+        -- Boucle pour chaque destination
+        FETCH NEXT FROM destinations_cursor INTO destination;
+        WHILE done = 0 DO
+            -- Déterminer la durée du vol en fonction de la destination
+            SET duration = CASE
+                WHEN destination = 'Paris' THEN 8
+                WHEN destination = 'New York' THEN 8
+                WHEN destination = 'Tokyo' THEN 12
+                WHEN destination = 'Yaoundé' THEN 6
+                ELSE 8
+            END;
 
-# Afficher les requêtes générées
-for query in queries:
-    print(query)
+            -- Réinitialiser done pour le curseur des horaires de départ
+            SET done = 0;
+            -- Ouvrir le curseur pour les horaires de départ
+            OPEN time_cursor;
+
+            -- Boucle pour chaque horaire de départ
+            FETCH NEXT FROM time_cursor INTO departure_time;
+            WHILE done = 0 DO
+                -- Calculer l'heure de départ et l'heure d'arrivée
+                SET departure_datetime = CONCAT(dateV, ' ', departure_time);
+                SET arrival_datetime = DATE_ADD(departure_datetime, INTERVAL duration HOUR);
+
+                -- Insérer le vol aller
+                INSERT INTO Flights (airline, origin, destination_id, departure_time, arrival_time, price, duration, image_url)
+                SELECT 'Air France', 'Paris', destination_id, departure_datetime, arrival_datetime, 500, duration, 'airline_image_url.jpg'
+                FROM Destinations
+                WHERE name = destination;
+
+                -- Insérer le vol retour
+                SET return_duration = CASE
+                    WHEN destination = 'Paris' THEN 8
+                    WHEN destination = 'New York' THEN 8
+                    WHEN destination = 'Tokyo' THEN 12
+                    WHEN destination = 'Yaoundé' THEN 6
+                    ELSE 8
+                END;
+
+                -- Calculer l'heure de départ et l'heure d'arrivée du vol retour
+                SET return_departure_datetime = CONCAT(dateV, ' ', departure_time);
+                SET return_arrival_datetime = DATE_ADD(return_departure_datetime, INTERVAL return_duration HOUR);
+                
+                INSERT INTO Flights (airline, origin, destination_id, departure_time, arrival_time, price, duration, image_url)
+                SELECT 'Air France', destination, destination_id, return_departure_datetime, return_arrival_datetime, 500, return_duration, 'airline_image_url.jpg'
+                FROM Destinations
+                WHERE name = 'Paris';
+
+                -- Passer au prochain horaire
+                FETCH NEXT FROM time_cursor INTO departure_time;
+            END WHILE;
+
+            -- Fermer le curseur pour les horaires de départ
+            CLOSE time_cursor;
+
+            -- Passer à la destination suivante
+            FETCH NEXT FROM destinations_cursor INTO destination;
+        END WHILE;
+
+        -- Fermer le curseur pour les destinations
+        CLOSE destinations_cursor;
+
+        -- Passer au jour suivant
+        SET dateV = DATE_ADD(dateV, INTERVAL 1 DAY);
+    END WHILE;
+
+END$$
+
+DELIMITER ;
+
+CALL InsertFlights();
