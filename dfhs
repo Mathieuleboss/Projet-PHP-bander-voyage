@@ -1,0 +1,70 @@
+Étape 1: Modifier le code PHP pour récupérer les données
+Je vais d'abord ajouter des requêtes pour récupérer les destinations disponibles dans la base de données, puis les afficher dans le formulaire de recherche et les offres spéciales.
+
+Récupérer les destinations
+Nous allons récupérer les destinations disponibles de la base de données pour les afficher dans le formulaire de recherche. Supposons que vous ayez une table destinations dans la base de données, avec des colonnes id et name.
+
+Voici le code PHP pour récupérer ces destinations :
+
+php
+Copier
+<?php
+session_start();
+$host = 'localhost';
+$dbname = 'bander_travel';
+$username = 'root';
+$password = 'Terrel21';
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Erreur de connexion : " . $e->getMessage());
+}
+
+// Vérifiez si l'utilisateur est connecté
+$user_pseudo = isset($_SESSION['username']) ? $_SESSION['username'] : "Connexion";
+
+// Récupérer les destinations depuis la base de données
+$query = "SELECT name FROM destinations";
+$stmt = $pdo->prepare($query);
+$stmt->execute();
+$destinations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Récupérer les offres spéciales
+$offersQuery = "SELECT * FROM offers ORDER BY discount DESC LIMIT 3";
+$offersStmt = $pdo->prepare($offersQuery);
+$offersStmt->execute();
+$offers = $offersStmt->fetchAll(PDO::FETCH_ASSOC);
+?>
+Étape 2: Insérer les destinations dans le formulaire
+Dans le formulaire de recherche, nous allons insérer dynamiquement les options de destination provenant de la base de données.
+
+html
+Copier
+<select id="destination" name="destination" class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-black w-full" aria-label="Destination">
+    <option value="" disabled selected>Destination</option>
+    <?php foreach ($destinations as $destination): ?>
+        <option value="<?php echo htmlspecialchars($destination['name']); ?>"><?php echo htmlspecialchars($destination['name']); ?></option>
+    <?php endforeach; ?>
+</select>
+Étape 3: Insérer les offres spéciales
+Pour afficher les offres spéciales sur la page, nous allons utiliser les données récupérées pour afficher chaque offre dans un bloc.
+
+html
+Copier
+<section class="py-10 px-6">
+    <h3 class="text-2xl font-semibold text-center mb-6">Offres spéciales</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <?php foreach ($offers as $offer): ?>
+            <div class="bg-white p-4 rounded-lg shadow-lg hover:shadow-xl transition duration-300 fade-in">
+                <div class="image-container">
+                    <img src="images/<?php echo htmlspecialchars($offer['image']); ?>" alt="<?php echo htmlspecialchars($offer['destination']); ?>" class="rounded-lg mb-4" loading="lazy">
+                </div>
+                <h4 class="text-xl font-semibold"><?php echo htmlspecialchars($offer['destination']); ?> -<?php echo htmlspecialchars($offer['discount']); ?>%</h4>
+                <p class="text-gray-700"><?php echo htmlspecialchars($offer['description']); ?></p>
+                <a href="offre.html" class="text-orange-500 hover:text-orange-600">En savoir plus</a>
+            </div>
+        <?php endforeach; ?>
+    </div>
+</section>
