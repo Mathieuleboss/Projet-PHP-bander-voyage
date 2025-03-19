@@ -60,6 +60,22 @@ CREATE TABLE IF NOT EXISTS messages_assistant (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Table des vols 
+
+CREATE TABLE Flights (
+flight_id INT AUTO_INCREMENT PRIMARY KEY,
+airline VARCHAR(100) NOT NULL,
+origin VARCHAR(100) NOT NULL,
+destination_id INT,
+-- Clé étrangère vers Destinations 
+departure_time DATETIME NOT NULL,
+arrival_time DATETIME NOT NULL,
+price DECIMAL(10, 2) NOT NULL,
+duration INT NOT NULL,
+image_url VARCHAR(255) NULL,
+FOREIGN KEY (destination_id) REFERENCES Destinations(destination_id),
+INDEX (departure_time) );
+
 -- Ajout manuel des colonnes si elles n'existent pas déjà
 -- Vérifie si la colonne rating existe avant de l'ajouter
 ALTER TABLE avis_utilisateurs ADD COLUMN IF NOT EXISTS rating INT DEFAULT NULL;
