@@ -1,121 +1,165 @@
--- Créer la base de données
+-- Vérifie si la base de données existe avant de la créer
+CREATE DATABASE IF NOT EXISTS bander_travel;
 
-CREATE DATABASE TravelDB; 
-USE TravelDB;
+-- Sélectionne la base de données
+USE bander_travel;
 
--- Table des utilisateurs 
+-- Création de la table users avec des améliorations
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('user', 'assistant') DEFAULT 'user', -- Ajout du rôle
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-CREATE TABLE Users ( 
-user_id INT AUTO_INCREMENT PRIMARY KEY, 
-first_name VARCHAR(100) NOT NULL,
-last_name VARCHAR(100) NOT NULL,
-email VARCHAR(150) NOT NULL UNIQUE, 
-password_hash VARCHAR(255) NOT NULL,
-phone_number VARCHAR(15) NULL,
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-balance DOUBLE DEFAULT 0.00,
-INDEX (email) );
+-- Création de la table avis_utilisateurs avec rating et reply
+CREATE TABLE IF NOT EXISTS avis_utilisateurs (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    comment TEXT NOT NULL,
+    rating INT DEFAULT NULL,
+    reply TEXT DEFAULT NULL,
+    date_posted TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Création de la table des réponses aux avis
+CREATE TABLE IF NOT EXISTS reponses_avis (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    avis_id INT NOT NULL,
+    user_id INT NOT NULL,
+    username VARCHAR(255) NOT NULL,
+    reponse TEXT NOT NULL,
+    date_reponse TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (avis_id) REFERENCES avis_utilisateurs(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Création de la table recherches
+CREATE TABLE IF NOT EXISTS recherches (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    terme_recherche VARCHAR(255) NOT NULL,
+    date_recherche TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    date_depart DATE,
+    date_retour DATE,
+    type_voyage VARCHAR(50),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Création de la table des messages pour l'assistant
+CREATE TABLE IF NOT EXISTS messages_assistant (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    message TEXT NOT NULL,
+    reponse TEXT,
+    date_message TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Ajout manuel des colonnes si elles n'existent pas déjà
+-- Vérifie si la colonne rating existe avant de l'ajouter
+-- Note : MySQL n'accepte pas ALTER TABLE ADD COLUMN IF NOT EXISTS
+-- Il faut vérifier manuellement avant d'ajouter la colonne si nécessaire
+
+-- Ajout du rôle assistant si nécessaire
+INSERT INTO users (username, email, password, role)
+SELECT 'Bander Assistant', 'assistant@gmail.com', '123', 'assistant'
+WHERE NOT EXISTS (
+    SELECT 1 FROM users WHERE role = 'assistant'
+);
+
+-- Compter le nombre total d'utilisateurs
+SELECT COUNT(*) AS total_users FROM users;
+
+-- Sélection des utilisateurs triés par date d'inscription (du plus récent au plus ancien)
+SELECT username, email, created_at FROM users ORDER BY created_at DESC;
+
+-- Sélection des avis avec tri par date ou notation
+SELECT *, COALESCE(rating, 0) AS rating, COALESCE(reply, '') AS reply 
+FROM avis_utilisateurs 
+ORDER BY date_posted DESC;
+
+-- Afficher la structure de la table recherches
+DESCRIBE recherches;
 
 -- Table des destinations 
-
-CREATE TABLE Destinations ( 
-destination_id INT AUTO_INCREMENT PRIMARY KEY,
-name VARCHAR(100) NOT NULL,
-country VARCHAR(100) NOT NULL,
-description TEXT,
-image_url VARCHAR(255) NULL,
-INDEX (country) );
-
--- Table des hôtels 
-
-CREATE TABLE Hotels(
-hotel_id INT AUTO_INCREMENT PRIMARY KEY,
-name VARCHAR(100) NOT NULL,
-destination_id INT,
-address VARCHAR(255) NOT NULL,
-stars INT CHECK (stars BETWEEN 1 AND 5),
-description TEXT,
-price_per_night DECIMAL(10, 2) NOT NULL,
-image_url VARCHAR(255) NULL,
-FOREIGN KEY (destination_id) REFERENCES Destinations(destination_id),
-INDEX (price_per_night) );
+CREATE TABLE IF NOT EXISTS Destinations ( 
+    destination_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    country VARCHAR(100) NOT NULL,
+    description TEXT,
+    image_url VARCHAR(255) NULL,
+    INDEX (country)
+);
 
 -- Table des vols 
-
-CREATE TABLE Flights (
-flight_id INT AUTO_INCREMENT PRIMARY KEY,
-airline VARCHAR(100) NOT NULL,
-origin VARCHAR(100) NOT NULL,
-destination_id INT,
--- Clé étrangère vers Destinations 
-departure_time DATETIME NOT NULL,
-arrival_time DATETIME NOT NULL,
-price DECIMAL(10, 2) NOT NULL,
-duration INT NOT NULL,
-image_url VARCHAR(255) NULL,
-FOREIGN KEY (destination_id) REFERENCES Destinations(destination_id),
-INDEX (departure_time) ); 
+CREATE TABLE IF NOT EXISTS Flights (
+    flight_id INT AUTO_INCREMENT PRIMARY KEY,
+    airline VARCHAR(100) NOT NULL,
+    origin VARCHAR(100) NOT NULL,
+    destination_id INT,
+    departure_time DATETIME NOT NULL,
+    arrival_time DATETIME NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    duration INT NOT NULL,
+    image_url VARCHAR(255) NULL,
+    FOREIGN KEY (destination_id) REFERENCES Destinations(destination_id),
+    INDEX (departure_time)
+);
 
 -- Table des réservations 
-
-CREATE TABLE Reservations (
-reservation_id INT AUTO_INCREMENT PRIMARY KEY,
-user_id INT, hotel_id INT,
-flight_id INT,
-reservation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-total_price DECIMAL(10, 2) NOT NULL,
-status ENUM('Pending', 'Confirmed', 'Cancelled') DEFAULT 'Pending', 
-FOREIGN KEY (user_id) REFERENCES Users(user_id),
-FOREIGN KEY (hotel_id) REFERENCES Hotels(hotel_id),
-FOREIGN KEY (flight_id) REFERENCES Flights(flight_id), 
-INDEX (reservation_date) );
-
--- Table des avis d'hôtels
-
-CREATE TABLE HotelReviews (
-review_id INT AUTO_INCREMENT PRIMARY KEY,
-user_id INT, hotel_id INT,
-rating INT CHECK (rating BETWEEN 1 AND 5), 
-review_text TEXT, 
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-FOREIGN KEY (user_id) REFERENCES Users(user_id),
-FOREIGN KEY (hotel_id) REFERENCES Hotels(hotel_id),
-INDEX (created_at) ); 
+CREATE TABLE IF NOT EXISTS Reservations (
+    reservation_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    hotel_id INT,
+    flight_id INT,
+    reservation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_price DECIMAL(10, 2) NOT NULL,
+    status ENUM('Pending', 'Confirmed', 'Cancelled') DEFAULT 'Pending',
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (hotel_id) REFERENCES Hotels(hotel_id),
+    FOREIGN KEY (flight_id) REFERENCES Flights(flight_id),
+    INDEX (reservation_date)
+);
 
 -- Table des avis de vols 
-
-CREATE TABLE FlightReviews (
-review_id INT AUTO_INCREMENT PRIMARY KEY,
-user_id INT, flight_id INT,
-rating INT CHECK (rating BETWEEN 1 AND 5),
-review_text TEXT,
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-FOREIGN KEY (user_id) REFERENCES Users(user_id),
-FOREIGN KEY (flight_id) REFERENCES Flights(flight_id),
-INDEX (created_at) );
+CREATE TABLE IF NOT EXISTS FlightReviews (
+    review_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    flight_id INT,
+    rating INT CHECK (rating BETWEEN 1 AND 5),
+    review_text TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (flight_id) REFERENCES Flights(flight_id),
+    INDEX (created_at)
+);
 
 -- Table des paiements
-
-CREATE TABLE Payments (
-payment_id INT AUTO_INCREMENT PRIMARY KEY,
-reservation_id INT,
-payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-amount DECIMAL(10, 2) NOT NULL,
-payment_method ENUM('Credit Card', 'Paypal', 'Bank Transfer') NOT NULL,
-payment_status ENUM('Pending', 'Completed', 'Failed') DEFAULT 'Pending',
-reservation_hotel INT,
--- Référence à l'ID de l'hôtel dans la réservation 
-reservation_flight INT,
--- Référence au vol dans la réservation 
-FOREIGN KEY (reservation_id) REFERENCES Reservations(reservation_id) );
+CREATE TABLE IF NOT EXISTS Payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    reservation_id INT,
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    amount DECIMAL(10, 2) NOT NULL,
+    payment_method ENUM('Credit Card', 'Paypal', 'Bank Transfer') NOT NULL,
+    payment_status ENUM('Pending', 'Completed', 'Failed') DEFAULT 'Pending',
+    reservation_hotel INT, -- Référence à l'ID de l'hôtel dans la réservation
+    reservation_flight INT, -- Référence au vol dans la réservation
+    FOREIGN KEY (reservation_id) REFERENCES Reservations(reservation_id)
+);
 
 -- Table des détails de paiement
-
-CREATE TABLE PaymentDetails (
-payment_detail_id INT AUTO_INCREMENT PRIMARY KEY,
-payment_id INT, card_number VARCHAR(16) NULL,
-card_expiry DATE NULL,
-card_cvc VARCHAR(4) NULL,
-paypal_email VARCHAR(100) NULL,
-bank_account_number VARCHAR(20) NULL,
-FOREIGN KEY (payment_id) REFERENCES Payments(payment_id) );
+CREATE TABLE IF NOT EXISTS PaymentDetails (
+    payment_detail_id INT AUTO_INCREMENT PRIMARY KEY,
+    payment_id INT,
+    card_number VARCHAR(16) NULL,
+    card_expiry DATE NULL,
+    card_cvc VARCHAR(4) NULL,
+    paypal_email VARCHAR(100) NULL,
+    bank_account_number VARCHAR(20) NULL,
+    FOREIGN KEY (payment_id) REFERENCES Payments(payment_id)
+);
