@@ -122,20 +122,13 @@ bander-sneakers/
 2. Créez les pages ou composants requis
 3. Mettez à jour la base de données si nécessaire
 
-## 👨‍💻 Développement futur
-
-- Intégration d'un système de paiement en cryptomonnaies
-- Application mobile native
-- Système de fidélité avec points et récompenses
-- Interface multilingue
-- Intégration avec des fournisseurs dropshipping
-
 ## 📞 Support et contact
 
 Pour toute question ou assistance concernant l'installation ou l'utilisation de Bander-Sneakers, veuillez nous contacter:
 
-- Email: support@bander-sneakers.com
-- Site web: www.bander-sneakers.com
+- Email: 43020094@parisnanterre.fr
+         43004280@parisnanterre.fr
+- Site web: http://localhost/bander-sneakers/index.php
 
 ## 📄 Licence
 
@@ -143,7 +136,8 @@ Ce projet est protégé par des droits d'auteur. Tous droits réservés.
 
 ## 👨‍👩‍👧‍👦 Contributeurs
 
-- Équipe de développement Bander-Sneakers
+- Terrel NUENTSA
+- Mathieu SIEGEL
 
 ---
 
