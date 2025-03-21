@@ -1,0 +1,353 @@
+<?php
+// Page de confirmation de commande
+require_once 'includes/config.php';
+require_once 'includes/functions.php';
+
+// Vérifier si l'ID de commande est disponible
+if (!isset($_SESSION['order_id'])) {
+    header('Location: index.php');
+    exit();
+}
+
+$orderId = $_SESSION['order_id'];
+
+// Récupérer les détails de la commande
+$db = getDbConnection();
+$stmt = $db->prepare("
+    SELECT o.*, u.first_name, u.last_name, u.email
+    FROM orders o
+    LEFT JOIN users u ON o.user_id = u.user_id
+    WHERE o.order_id = :order_id
+");
+$stmt->bindParam(':order_id', $orderId);
+$stmt->execute();
+$order = $stmt->fetch();
+
+if (!$order) {
+    header('Location: index.php');
+    exit();
+}
+
+// Récupérer les articles de la commande
+$stmt = $db->prepare("
+    SELECT oi.*, s.sneaker_name, sz.size_value, sz.size_type, si.image_url, b.brand_name
+    FROM order_items oi
+    JOIN sneakers s ON oi.sneaker_id = s.sneaker_id
+    JOIN sizes sz ON oi.size_id = sz.size_id
+    JOIN brands b ON s.brand_id = b.brand_id
+    LEFT JOIN (
+        SELECT sneaker_id, image_url
+        FROM sneaker_images
+        WHERE is_primary = 1
+        LIMIT 1
+    ) si ON s.sneaker_id = si.sneaker_id
+    WHERE oi.order_id = :order_id
+");
+$stmt->bindParam(':order_id', $orderId);
+$stmt->execute();
+$orderItems = $stmt->fetchAll();
+
+// Titre et description de la page
+$page_title = "Confirmation de commande - Bander-Sneakers";
+$page_description = "Votre commande a été confirmée. Merci pour votre achat sur Bander-Sneakers.";
+
+// Inclure l'en-tête
+include 'includes/header.php';
+?>
+
+<style>
+    .confirmation-section {
+        padding: 60px 0;
+    }
+    .confirmation-header {
+        text-align: center;
+        margin-bottom: 40px;
+        animation: fadeIn 1s ease-in-out;
+    }
+    .confirmation-icon {
+        font-size: 60px;
+        color: var(--success-color, #28a745);
+        margin-bottom: 20px;
+    }
+    .confirmation-header h1 {
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+    }
+    .confirmation-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        margin-bottom: 40px;
+    }
+    .order-info, .shipping-info {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    .order-info ul {
+        list-style: none;
+        padding: 0;
+    }
+    .order-info li {
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+    }
+    .status-pending { color: #ff9800; }
+    .status-confirmed { color: #28a745; }
+    .status-shipped { color: #007bff; }
+    .status-delivered { color: #6f42c1; }
+    .order-summary {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        margin-bottom: 40px;
+    }
+    .order-item {
+        display: flex;
+        align-items: center;
+        padding: 15px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .item-image img {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 4px;
+        margin-right: 20px;
+    }
+    .item-image .no-image {
+        width: 80px;
+        height: 80px;
+        background: #f5f5f5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #999;
+        margin-right: 20px;
+        border-radius: 4px;
+    }
+    .item-details h3 {
+        margin: 0 0 5px;
+        font-size: 1.1rem;
+    }
+    .item-details p {
+        margin: 5px 0;
+        color: #666;
+    }
+    .item-price {
+        font-weight: 600;
+        margin-left: auto;
+    }
+    .order-totals {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+    }
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    .grand-total {
+        font-weight: 700;
+        font-size: 1.2rem;
+    }
+    .confirmation-actions {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .confirmation-actions .btn {
+        margin: 0 10px;
+    }
+    .confirmation-message {
+        text-align: center;
+        color: #666;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @media (max-width: 768px) {
+        .confirmation-details {
+            grid-template-columns: 1fr;
+        }
+        .confirmation-header h1 {
+            font-size: 2rem;
+        }
+    }
+</style>
+
+<!-- Breadcrumb -->
+<div class="breadcrumb">
+    <div class="container">
+        <ul class="breadcrumb-list">
+            <li><a href="index.php">Accueil</a></li>
+            <li><a href="cart.php">Panier</a></li>
+            <li class="active">Confirmation de commande</li>
+        </ul>
+    </div>
+</div>
+
+<!-- Order Confirmation Section -->
+<section class="confirmation-section">
+    <div class="container">
+        <div class="confirmation-header">
+            <div class="confirmation-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h1>Commande confirmée</h1>
+            <p>Merci pour votre achat, <?= htmlspecialchars($order['first_name'] ?? 'Client') ?> ! Votre commande a été traitée avec succès.</p>
+        </div>
+
+        <div class="confirmation-details">
+            <div class="order-info">
+                <h2>Informations de commande</h2>
+                <ul>
+                    <li><span>Numéro de commande:</span> <strong>#<?= $order['order_id'] ?></strong></li>
+                    <li><span>Date:</span> <strong><?= date('d/m/Y à H:i', strtotime($order['created_at'])) ?></strong></li>
+                    <li><span>Statut:</span> <span class="status-<?= strtolower($order['order_status']) ?>"><?= ucfirst($order['order_status']) ?></span></li>
+                    <li><span>Mode de paiement:</span> <strong><?= ucfirst($order['payment_method']) ?></strong></li>
+                    <li><span>Mode de livraison:</span> <strong><?= ucfirst($order['shipping_method']) ?></strong></li>
+                </ul>
+            </div>
+
+            <div class="shipping-info">
+                <h2>Adresse de livraison</h2>
+                <p>
+                    <strong><?= htmlspecialchars($order['first_name'] ?? '') . ' ' . htmlspecialchars($order['last_name'] ?? '') ?></strong><br>
+                    <?= htmlspecialchars($order['shipping_address']) ?><br>
+                    <?= htmlspecialchars($order['shipping_postal_code']) ?> <?= htmlspecialchars($order['shipping_city']) ?><br>
+                    <?= htmlspecialchars($order['shipping_country']) ?>
+                </p>
+            </div>
+        </div>
+
+        <div class="order-summary">
+            <h2>Récapitulatif de la commande</h2>
+            <div class="order-items">
+                <?php foreach ($orderItems as $item): ?>
+                    <div class="order-item">
+                        <div class="item-image">
+                            <?php if ($item['image_url']): ?>
+                                <img src="assets/images/sneakers/<?= htmlspecialchars($item['image_url']) ?>" alt="<?= htmlspecialchars($item['sneaker_name']) ?>">
+                            <?php else: ?>
+                                <div class="no-image"><i class="fas fa-image"></i></div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="item-details">
+                            <h3><?= htmlspecialchars($item['sneaker_name']) ?></h3>
+                            <p>Marque: <?= htmlspecialchars($item['brand_name']) ?></p>
+                            <p>Taille: <?= htmlspecialchars($item['size_value']) ?> (<?= htmlspecialchars($item['size_type']) ?>)</p>
+                            <p>Quantité: <?= $item['quantity'] ?></p>
+                        </div>
+                        <div class="item-price"><?= formatPrice($item['price'] * $item['quantity']) ?></div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="order-totals">
+                <?php
+                $subtotal = 0;
+                foreach ($orderItems as $item) {
+                    $subtotal += $item['price'] * $item['quantity'];
+                }
+                $shipping = $order['total_amount'] - $subtotal;
+                ?>
+                <div class="total-row">
+                    <span>Sous-total:</span>
+                    <span><?= formatPrice($subtotal) ?></span>
+                </div>
+                <div class="total-row">
+                    <span>Frais de livraison:</span>
+                    <span><?= $shipping > 0 ? formatPrice($shipping) : 'Gratuit' ?></span>
+                </div>
+                <div class="total-row grand-total">
+                    <span>Total:</span>
+                    <span><?= formatPrice($order['total_amount']) ?></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="confirmation-actions">
+            <a href="index.php" class="btn btn-primary btn-lg">
+                <i class="fas fa-home"></i> Retour à l'accueil
+            </a>
+            <?php if (isLoggedIn()): ?>
+                <a href="compte.php" class="btn btn-primary btn-lg">
+                    <i class="fas fa-user"></i> Mon compte
+                </a>
+            <?php endif; ?>
+        </div>
+
+        <div class="confirmation-message">
+            <p>Un email de confirmation a été envoyé à <strong><?= htmlspecialchars($order['email'] ?? 'l’adresse fournie') ?></strong>.</p>
+            <p>Si vous avez des questions, contactez-nous via <a href="contact.php">notre page de contact</a>.</p>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Animation de confirmation
+    const confirmationHeader = document.querySelector('.confirmation-header');
+    confirmationHeader.style.opacity = '0';
+    setTimeout(() => {
+        confirmationHeader.style.opacity = '1';
+    }, 100);
+
+    // Afficher un toast de confirmation
+    showToast('Merci pour votre commande !');
+
+    // Fonction pour afficher un toast (inspirée de cart.php)
+    function showToast(message, isError = false) {
+        const existingToast = document.getElementById('confirmation-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
+
+        const toast = document.createElement('div');
+        toast.id = 'confirmation-toast';
+        toast.style.position = 'fixed';
+        toast.style.bottom = '20px';
+        toast.style.right = '20px';
+        toast.style.backgroundColor = isError ? 'rgba(220, 53, 69, 0.9)' : 'rgba(40, 167, 69, 0.9)';
+        toast.style.color = 'white';
+        toast.style.padding = '12px 24px';
+        toast.style.borderRadius = '4px';
+        toast.style.zIndex = '9999';
+        toast.style.boxShadow = '0 3px 10px rgba(0,0,0,0.2)';
+        toast.style.transition = 'all 0.3s ease';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+
+        toast.innerHTML = `<i class="fas fa-check-circle" style="margin-right: 8px;"></i> ${message}`;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateY(0)';
+        }, 10);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(20px)';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    }
+});
+</script>
+
+<?php
+// Supprimer l'ID de commande de la session après affichage
+unset($_SESSION['order_id']);
+
+// Inclure le pied de page
+include 'includes/footer.php';
+?>
